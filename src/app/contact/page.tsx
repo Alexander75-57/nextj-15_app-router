@@ -1,0 +1,108 @@
+"use client";
+
+import { useActionState, useState, useRef } from "react";
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+
+import { FeedbackSchema } from "@/lib/validation";
+import { submitFeedback } from "./action";
+
+export default function ContactPage() {
+  const [state, formAction, isPending] = useActionState(submitFeedback, {
+    success: false,
+    errors: {},
+  });
+  const [clientErrors, setClientErrors] = useState<Record<string, string[]>>({});
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const handleClientValidation = (e: React.FormEvent<HTMLFormElement>) => {
+    const formData = new FormData(e.currentTarget);
+    const raw = {
+      email: formData.get("email")?.toString() || "",
+      message: formData.get("message")?.toString() || "",
+    };
+
+    const result = FeedbackSchema.safeParse(raw);
+    if (!result.success) {
+      e.preventDefault();
+      setClientErrors(result.error.flatten().fieldErrors);
+    } else {
+      setClientErrors({});
+    }
+  };
+
+  // Сброс формы после успешной отправки
+  if (state.success && formRef.current) {
+    formRef.current.reset();
+  }
+
+  return (
+    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
+      <h1 className="text-2xl font-bold mb-6 text-center">Feedback</h1>
+      
+      <form ref={formRef} action={formAction} onSubmit={handleClientValidation} noValidate className="space-y-4">
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <input 
+            id="email"
+            name="email" 
+            type="email"
+            placeholder="example@email.com" 
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+            disabled={isPending}
+          />
+          {(clientErrors.email || (state.errors && 'email' in state.errors && state.errors.email)) && (
+            <p className="text-red-500 text-sm mt-1">{clientErrors.email?.[0] || (state.errors && 'email' in state.errors && state.errors.email?.[0])}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+            Message
+          </label>
+          <textarea 
+            id="message"
+            name="message" 
+            placeholder="Your message..." 
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical text-black"
+            disabled={isPending}
+          />
+          {(clientErrors.message || (state.errors && 'message' in state.errors && state.errors.message)) && (
+            <p className="text-red-500 text-sm mt-1">{clientErrors.message?.[0] || (state.errors && 'message' in state.errors && state.errors.message?.[0])}</p>
+          )}
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={isPending}
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {isPending ? 'Sending...' : 'Send Message'}
+        </button>
+        
+        {state.success && (
+          <div className="p-3 bg-green-100 border border-green-400 text-green-700 rounded-md">
+            Thank you! Your message has been sent.
+          </div>
+        )}
+        
+        {state.errors && 'general' in state.errors && state.errors.general && (
+          <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-md">
+            {state.errors.general[0]}
+          </div>
+        )}
+
+        <div className="flex gap-4 items-center flex-col">
+          <Button
+            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-green-500 text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
+          >
+            <Link href="/">Back to main page</Link>    
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
