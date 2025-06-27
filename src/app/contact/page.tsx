@@ -23,13 +23,14 @@ export default function ContactPage() {
     }
   });
 
-  const [success, setSuccess] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const [clientErrors, setClientErrors] = useState<Record<string, string[]>>({});
-  const formRef = useRef<HTMLFormElement>(null);
+  const [success, setSuccess] = useState(false); //обратную связь об успешной отправке сообщения + Сброса состояния при ошибках
+  const [errors, setErrors] = useState<Record<string, string[]>>({}); //обеспечивает отображение серверных ошибок от tRPC мутации + общих ошибок подключения/сервера и ошибок сети пользователю
+  const [clientErrors, setClientErrors] = useState<Record<string, string[]>>({}); //обеспечивает мгновенную валидацию формы на клиентской стороне до отправки на сервер.
+  const formRef = useRef<HTMLFormElement>(null); // Сброса всех полей формы после успешной отправки через formRef.current?.reset() (line-14)
 
+   // Обработчик отправки формы, Извлекает данные из формы (строки 34-38), Валидирует через Zod (строки 40-44), Отправляет на сервер через tRPC мутацию (строка 47)
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    e.preventDefault(); // отменяет стандартное поведение браузера при отправке формы (перезагрузку страницы).
     
     const formData = new FormData(e.currentTarget);
     const raw = {
