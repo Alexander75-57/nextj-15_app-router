@@ -9,6 +9,17 @@ schema.ts
 drizzle.config.ts
 .env.local
 
+=================================
+● Проблемы в файле src/app/contact/page.tsx:14-20:
+
+  1. Неправильное использование tRPC мутации с useActionState - useActionState ожидает server action, а не tRPC мутацию
+  2. Некорректная интеграция tRPC - пытается использовать tRPC мутацию как server action в formAction
+  3. Конфликт подходов - смешивает Next.js server actions с tRPC клиентскими мутациями
+
+  Нужно выбрать один подход: либо использовать tRPC с клиентской обработкой форм, либо вернуться к server actions с useActionState.
+
+================================
+
 ## Getting Started
 
 First, run the development server:

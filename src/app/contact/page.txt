@@ -1,3 +1,22 @@
+======================================
+● Проблемы совместимости с React 19 и Next.js 15 в src/app/contact/page.tsx:
+
+  1. Строка 3: useActionState устарел - в React 19 используйте useFormState
+  2. Строки 14-23: Неправильное использование tRPC мутации с формой - нужно использовать server action или обычный submit handler
+  3. Строка 46-48: Сброс формы в render - должен быть в useEffect
+  4. Строки 67-68, 84-86: Сложная логика проверки ошибок - упростить
+  5. Строки 110-114: Button с Link внутри - неправильная семантика
+
+  Основные исправления:
+  - Заменить useActionState на useFormState
+  - Исправить интеграцию с tRPC или использовать server action
+  - Переместить сброс формы в useEffect
+  - Упростить отображение ошибок
+  - Исправить структуру кнопки с ссылкой
+  
+====================================
+
+
 "use client";
 
 import { useActionState, useState, useRef } from "react";
@@ -9,35 +28,18 @@ import { FeedbackSchema } from "@/lib/validation";
 import { trpcClient } from "@/app/api/client";
 
 export default function ContactPage() {
-  const submitFeedback = trpcClient.addFeedback.useMutation();
-
-  type FormState = { success: boolean; errors: Record<string, string[]> };
   
- // Используем tRPC с useActionState для управления состоянием формы и обработки ошибок
-  const [state, formAction, isPending] = useActionState(async (prev: FormState, formData: FormData) => {
-    const raw = {
-        email: formData.get("email")?.toString() || "",
-        message: formData.get("message")?.toString() || "",
-    };
-    try {
-        const result = await submitFeedback.mutateAsync(raw);
-        if (result.success) {
-            return { ...prev, success: true, errors: {} };
-        } else {
-            return { ...prev, success: false, errors: result.errors };
-        }
-    }   catch (error) {
-        console.error('Error submitting feedback:', error);
-        return { ...prev, success: false, errors: { general: ['Unable to connect to database. Please try again later.'] } };
-    }
-      
-  }, { success: false, errors: {} } as FormState)
+    // Используем tRPC для отправки данных формы
+    const submitFeedback = trpcClient.addFeedback.useMutation();
+
+  // Состояние для обработки результатов отправки формы
+  // Используем useActionState для управления состоянием формы
+  const [state, formAction, isPending] = useActionState(submitFeedback, {
+    success: false,
+    errors: {},
+  });
   
   const [clientErrors, setClientErrors] = useState<Record<string, string[]>>({});
-
-  const getFieldError = (field: string) => {
-    return clientErrors[field]?.[0] || state?.errors?.[field]?.[0];
-  };
   const formRef = useRef<HTMLFormElement>(null);
 
   const handleClientValidation = (e: React.FormEvent<HTMLFormElement>) => {
@@ -78,8 +80,8 @@ export default function ContactPage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
             disabled={isPending}
           />
-          {getFieldError('email') && (
-            <p className="text-red-500 text-sm mt-1">{getFieldError('email')}</p>
+          {(clientErrors.email || (state.errors && 'email' in state.errors && state.errors.email)) && (
+            <p className="text-red-500 text-sm mt-1">{clientErrors.email?.[0] || (state.errors && 'email' in state.errors && state.errors.email?.[0])}</p>
           )}
         </div>
 
@@ -95,8 +97,8 @@ export default function ContactPage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical text-black"
             disabled={isPending}
           />
-          {getFieldError('message') && (
-            <p className="text-red-500 text-sm mt-1">{getFieldError('message')}</p>
+          {(clientErrors.message || (state.errors && 'message' in state.errors && state.errors.message)) && (
+            <p className="text-red-500 text-sm mt-1">{clientErrors.message?.[0] || (state.errors && 'message' in state.errors && state.errors.message?.[0])}</p>
           )}
         </div>
 
@@ -114,19 +116,18 @@ export default function ContactPage() {
           </div>
         )}
         
-        {state?.errors?.general?.[0] && (
+        {state.errors && 'general' in state.errors && state.errors.general && (
           <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-md">
-            {state?.errors?.general?.[0]}
+            {state.errors.general[0]}
           </div>
         )}
 
-        <div className="flex justify-center">
-          <Link 
-            href="/" 
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-green-500 text-white gap-2 hover:bg-green-600 font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
+        <div className="flex gap-4 items-center flex-col">
+          <Button
+            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-green-500 text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
           >
-            Back to main page
-          </Link>
+            <Link href="/">Back to main page</Link>    
+          </Button>
         </div>
       </form>
     </div>
