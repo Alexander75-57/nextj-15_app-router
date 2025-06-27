@@ -1,46 +1,36 @@
 "use client";
 
-import { useActionState, useState, useRef } from "react";
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-
+import { useState, useRef } from "react";
+import Link from "next/link";
 import { FeedbackSchema } from "@/lib/validation";
-//import { submitFeedback } from "./action"; // change to tRPCProvider
 import { trpcClient } from "@/app/api/client";
 
 export default function ContactPage() {
-  const submitFeedback = trpcClient.addFeedback.useMutation();
-
-  type FormState = { success: boolean; errors: Record<string, string[]> };
-  
- // Используем tRPC с useActionState для управления состоянием формы и обработки ошибок
-  const [state, formAction, isPending] = useActionState(async (prev: FormState, formData: FormData) => {
-    const raw = {
-        email: formData.get("email")?.toString() || "",
-        message: formData.get("message")?.toString() || "",
-    };
-    try {
-        const result = await submitFeedback.mutateAsync(raw);
-        if (result.success) {
-            return { ...prev, success: true, errors: {} };
-        } else {
-            return { ...prev, success: false, errors: result.errors };
-        }
-    }   catch (error) {
-        console.error('Error submitting feedback:', error);
-        return { ...prev, success: false, errors: { general: ['Unable to connect to database. Please try again later.'] } };
+  const submitFeedback = trpcClient.addFeedback.useMutation({
+    onSuccess: (data) => {
+      if (data?.success) {
+        setSuccess(true);
+        setErrors({});
+        formRef.current?.reset();
+      } else {
+        setSuccess(false);
+        setErrors(data?.errors || { general: ['Failed to send message'] });
+      }
+    },
+    onError: (error) => {
+      setSuccess(false);
+      setErrors({ general: [error.message || 'Unable to connect to server'] });
     }
-      
-  }, { success: false, errors: {} } as FormState)
-  
-  const [clientErrors, setClientErrors] = useState<Record<string, string[]>>({});
+  });
 
-  const getFieldError = (field: string) => {
-    return clientErrors[field]?.[0] || state?.errors?.[field]?.[0];
-  };
+  const [success, setSuccess] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [clientErrors, setClientErrors] = useState<Record<string, string[]>>({});
   const formRef = useRef<HTMLFormElement>(null);
 
-  const handleClientValidation = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
     const formData = new FormData(e.currentTarget);
     const raw = {
       email: formData.get("email")?.toString() || "",
@@ -49,23 +39,23 @@ export default function ContactPage() {
 
     const result = FeedbackSchema.safeParse(raw);
     if (!result.success) {
-      e.preventDefault();
       setClientErrors(result.error.flatten().fieldErrors);
-    } else {
-      setClientErrors({});
+      return;
     }
+    
+    setClientErrors({});
+    submitFeedback.mutate(raw);
   };
 
-  // Сброс формы после успешной отправки
-  if (state.success && formRef.current) {
-    formRef.current.reset();
-  }
+  const getFieldError = (field: string) => {
+    return clientErrors[field]?.[0] || errors[field]?.[0];
+  };
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
       <h1 className="text-2xl font-bold mb-6 text-center">Feedback</h1>
       
-      <form ref={formRef} action={formAction} onSubmit={handleClientValidation} noValidate className="space-y-4">
+      <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
             Email
@@ -76,7 +66,7 @@ export default function ContactPage() {
             type="email"
             placeholder="example@email.com" 
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-            disabled={isPending}
+            disabled={submitFeedback.isPending}
           />
           {getFieldError('email') && (
             <p className="text-red-500 text-sm mt-1">{getFieldError('email')}</p>
@@ -93,7 +83,7 @@ export default function ContactPage() {
             placeholder="Your message..." 
             rows={4}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical text-black"
-            disabled={isPending}
+            disabled={submitFeedback.isPending}
           />
           {getFieldError('message') && (
             <p className="text-red-500 text-sm mt-1">{getFieldError('message')}</p>
@@ -102,21 +92,21 @@ export default function ContactPage() {
 
         <button 
           type="submit" 
-          disabled={isPending}
+          disabled={submitFeedback.isPending}
           className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {isPending ? 'Sending...' : 'Send Message'}
+          {submitFeedback.isPending ? 'Sending...' : 'Send Message'}
         </button>
         
-        {state.success && (
+        {success && (
           <div className="p-3 bg-green-100 border border-green-400 text-green-700 rounded-md">
             Thank you! Your message has been sent.
           </div>
         )}
         
-        {state?.errors?.general?.[0] && (
+        {errors.general && (
           <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-md">
-            {state?.errors?.general?.[0]}
+            {errors.general[0]}
           </div>
         )}
 
