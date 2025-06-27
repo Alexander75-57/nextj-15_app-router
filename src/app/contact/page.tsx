@@ -6,22 +6,25 @@ import { FeedbackSchema } from "@/lib/validation";
 import { trpcClient } from "@/app/api/client";
 
 export default function ContactPage() {
-  const submitFeedback = trpcClient.addFeedback.useMutation({
-    onSuccess: (data) => {
-      if (data?.success) {
-        setSuccess(true);
-        setErrors({});
-        formRef.current?.reset();
-      } else {
-        setSuccess(false);
-        setErrors(data?.errors || { general: ['Failed to send message'] });
-      }
-    },
-    onError: (error) => {
-      setSuccess(false);
-      setErrors({ general: [error.message || 'Unable to connect to server'] });
-    }
-  });
+  
+    //tRPC мутация для отправки feedback на сервер.
+    //Вызывается через submitFeedback.mutate(raw) после валидации данных.
+    const submitFeedback = trpcClient.addFeedback.useMutation({
+        onSuccess: (data) => {
+        if (data?.success) {
+            setSuccess(true);
+            setErrors({}); // очищает ошибки после успешной отправки
+            formRef.current?.reset(); // сбрасывает форму после успешной отправки
+        } else {
+            setSuccess(false); // сбрасывает состояние успеха при ошибке
+            setErrors(data?.errors || { general: ['Failed to send message'] }); // устанавливает ошибки, если они есть
+        }
+        },
+        onError: (error) => {
+        setSuccess(false); // сбрасывает состояние успеха при ошибке
+        setErrors({ general: [error.message || 'Unable to connect to server'] });// устанавливает общую ошибку при проблемах с подключением или сервером
+        }
+    });
 
   const [success, setSuccess] = useState(false); //обратную связь об успешной отправке сообщения + Сброса состояния при ошибках
   const [errors, setErrors] = useState<Record<string, string[]>>({}); //обеспечивает отображение серверных ошибок от tRPC мутации + общих ошибок подключения/сервера и ошибок сети пользователю
