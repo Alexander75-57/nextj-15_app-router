@@ -36,6 +36,7 @@ export default function ContactPage() {
     e.preventDefault(); // отменяет стандартное поведение браузера при отправке формы (перезагрузку страницы).
     
     const formData = new FormData(e.currentTarget);
+    // Извлекает значения полей email и message из FormData, преобразует FormData в объект для валидации
     const raw = {
       email: formData.get("email")?.toString() || "",
       message: formData.get("message")?.toString() || "",

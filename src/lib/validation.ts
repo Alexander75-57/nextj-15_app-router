@@ -1,3 +1,5 @@
+//проверяет данные формы перед сохранением
+
 import { z } from "zod";
 
 export const FeedbackSchema = z.object({

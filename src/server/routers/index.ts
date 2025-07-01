@@ -1,30 +1,22 @@
-import { router, publicProcedure } from '@/server/trpc'
-
-
-import {Feedback} from '@/db/schema';
+import { router, publicProcedure } from '@/server/trpc';
 import { db } from '@/db';
+import { Feedback } from '@/db/schema';
 import { FeedbackSchema } from '@/lib/validation';
+import { TRPCError } from '@trpc/server';
 
-export const appRouterFeedback = router({
-    addFeedback: publicProcedure
-        .input(FeedbackSchema)
-        .mutation(async ({ input }) => {
-            const result = FeedbackSchema.safeParse(input);
-            if (!result.success) {
-                return { success: false, errors: result.error.flatten().fieldErrors };
-            }
-
-            try {
-                await db.insert(Feedback).values(result.data);
-                return { success: true, errors: {} };
-            } catch (error) {
-                console.error('Database error:', error);
-                return {
-                    success: false,
-                    errors: {
-                        general: ['Unable to connect to database. Please try again later.']
-                    }
-                };
-            }
-        })
+export const appRouter = router({
+  addFeedback: publicProcedure.input(FeedbackSchema).mutation(async ({ input }) => {
+    try {
+      await db.insert(Feedback).values(input);
+      return { success: true };
+    } catch (error) {
+      console.error('Database error:', error);
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Unable to connect to database. Please try again later.',
+      });
+    }
+  }),
 });
+
+export type AppRouter = typeof appRouter;
